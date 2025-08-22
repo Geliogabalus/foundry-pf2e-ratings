@@ -1,0 +1,20 @@
+{
+  "id": "pf2e-ratings",
+  "title": "PF2E Ratings",
+  "version": "0.0.1",
+  "esmodules": [
+    "main.js"
+  ],
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "authors": [
+    {
+      "name": "Geliogabalus",
+      "flags": {}
+    }
+  ],
+  "persistentStorage": true,
+  "url": "https://github.com/Geliogabalus/foundry-pf2e-ratings"
+}
