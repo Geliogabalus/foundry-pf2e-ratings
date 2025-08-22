@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "lib": [
+      "esnext"
+    ],
+    "strict": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "noImplicitOverride": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "baseUrl": ".",
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "allowUnusedLabels": false,
+    "removeComments": false,
+    "resolveJsonModule": true,
+    "useDefineForClassFields": true,
+    "noErrorTruncation": true,
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "node_modules/@types"
+    ],
+  }
+}

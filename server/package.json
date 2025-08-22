@@ -1,0 +1,21 @@
+{
+  "name": "pf2e-ratings-server",
+  "version": "0.0.1",
+  "description": "PF2E Ratings Server",
+  "main": "dist/main.js",
+  "author": "arthur.khokhlov@gmail.com",
+  "type": "module",
+  "scripts": {
+    "start": "npm run build & node dist/main.js",
+    "build": "npx tsc"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^6.1.1",
+    "@types/express": "^5.0.3",
+    "typescript": "^5.9.2"
+  }
+}
