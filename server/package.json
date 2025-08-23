@@ -6,7 +6,7 @@
   "author": "arthur.khokhlov@gmail.com",
   "type": "module",
   "scripts": {
-    "start": "npm run build & node dist/main.js",
+    "start": "npx tsc & node dist/main.js",
     "build": "npx tsc"
   },
   "dependencies": {
@@ -16,6 +16,7 @@
   "devDependencies": {
     "@types/dotenv": "^6.1.1",
     "@types/express": "^5.0.3",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "concurrently": "^9.2.0"
   }
 }
