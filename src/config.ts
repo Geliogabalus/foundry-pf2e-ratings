@@ -1,3 +1,5 @@
+import { CompendiumController } from './compendium-controller.ts';
+import { DataController } from './data-controller.ts';
 import { Logger } from './logger.ts';
 
 export const moduleName = 'pf2e-ratings';
@@ -6,3 +8,5 @@ export const storagePath = `modules/${moduleName}/storage`;
 export const baseId = `${moduleName}`;
 
 export const logger = new Logger();
+export const compendiumController = new CompendiumController();
+export const dataController = new DataController('http://localhost:3000');

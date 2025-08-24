@@ -1,2 +1,10 @@
-:root {
+.result-list {
+
+    .rating {
+        flex: 0.3;
+        padding: 0.25em 0.05em;
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+    }
 }
