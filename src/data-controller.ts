@@ -27,7 +27,7 @@ export class DataController {
         }
     }
 
-    async getRatings(type: string, entries: Entry[]): Promise<Record<string, RatingItem>> {
+    async getRatings(type: string): Promise<Record<string, RatingItem>> {
         if (this.cache[type]) {
             return this.cache[type];
         }

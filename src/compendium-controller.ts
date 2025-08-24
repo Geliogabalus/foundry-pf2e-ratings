@@ -1,3 +1,4 @@
+import { on } from 'events';
 import { dataController } from './config.ts';
 
 export class CompendiumController {
@@ -6,6 +7,7 @@ export class CompendiumController {
     resultListObserver: MutationObserver | null = null;
 
     ratingElementHash: { [key: string]: HTMLElement } = {};
+    ratingPopup: HTMLElement | null = null;
 
     constructor() {
         Hooks.on('renderCompendiumBrowser', (app: any) => {
@@ -112,14 +114,14 @@ export class CompendiumController {
 
         const ratingElementHash = this.ratingElementHash;
 
-        const ratings = await dataController.getRatings(activeTab.tabName, results);
+        const ratings = await dataController.getRatings(activeTab.tabName);
 
         for (let i = 0; i < results.length; i++) {
             const item = results[i];
             const itemElement = resultElements[i];
 
             if (!ratingElementHash[item.uuid]) {
-                ratingElementHash[item.uuid] = this.createRatingElement();
+                ratingElementHash[item.uuid] = this.createRatingElement(item);
             }
             const ratingElement = ratingElementHash[item.uuid];
 
@@ -134,8 +136,29 @@ export class CompendiumController {
         }
     }
 
-    createRatingElement(): HTMLElement {
+    createRatingElement(item: any): HTMLElement {
         const ratingElement = document.createElement('div');
+        ratingElement.onclick = () => {
+            if (this.ratingPopup) {
+                this.ratingPopup.remove();
+                this.ratingPopup = null;
+            }
+
+            const popup = this.renderRatingPopup(item);
+            this.ratingPopup = popup;
+            ratingElement.appendChild(popup);
+
+            setTimeout(() => {
+                const onOutsideClick = (event: MouseEvent) => {
+                    if (!popup.contains(event.target as Node)) {
+                        popup.remove();
+                        this.ratingPopup = null;
+                        document.removeEventListener('click', onOutsideClick);
+                    }
+                }
+                document.addEventListener('click', onOutsideClick);
+            }, 0);
+        }
         ratingElement.classList.add('rating');
 
         const ratingText = document.createElement('span');
@@ -155,5 +178,13 @@ export class CompendiumController {
         } else {
             ratingText.textContent = rating.toFixed(1);
         }
+    }
+
+    renderRatingPopup(item: any) {
+        const popupElement = document.createElement('div');
+        popupElement.classList.add('rating-popup');
+        popupElement.textContent = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.';
+
+        return popupElement;
     }
 }
