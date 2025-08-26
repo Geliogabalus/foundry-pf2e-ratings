@@ -16,9 +16,12 @@ export interface RatingItem extends Record<string, SQLOutputValue> {
 }
 
 export class DataSource {
-    db: DatabaseSync;
-    selectRatingsByType: StatementSync;
-    insertEntry: StatementSync;
+    private db: DatabaseSync;
+    private selectRatingsByType: StatementSync;
+    private insertEntry: StatementSync;
+    private checkUserCredentials: StatementSync;
+    private checkUserNameExists: StatementSync;
+    private insertUser: StatementSync;
 
     constructor(dbPath: string) {
         this.db = new DatabaseSync(dbPath);
@@ -29,6 +32,18 @@ export class DataSource {
 
         this.insertEntry = this.db.prepare(`
             INSERT OR IGNORE INTO Entry (id, typeId, rating) VALUES (?, ?, ?)
+        `);
+
+        this.checkUserCredentials = this.db.prepare(`
+            SELECT 1 FROM User WHERE name = ? AND password = ?
+        `);
+
+        this.checkUserNameExists = this.db.prepare(`
+            SELECT 1 FROM User WHERE name = ?
+        `);
+
+        this.insertUser = this.db.prepare(`
+            INSERT INTO User (name, password) VALUES (?, ?)
         `);
 
         /*const query = this.db.prepare(`
@@ -57,6 +72,25 @@ export class DataSource {
             this.insertEntry.run(entry.id, typeId, null);
         } catch (error) {
             console.error('Failed to add new entry:', error);
+            throw error;
+        }
+    }
+
+    checkAuth(username: string, password: string): boolean {
+        const result = this.checkUserCredentials.get(username, password);
+        return !!result;
+    }
+
+    checkUserName(username: string): boolean {
+        const result = this.checkUserNameExists.get(username);
+        return !!result;
+    }
+
+    createUser(username: string, password: string): void {
+        try {
+            this.insertUser.run(username, password);
+        } catch (error) {
+            console.error('Failed to create new user:', error);
             throw error;
         }
     }

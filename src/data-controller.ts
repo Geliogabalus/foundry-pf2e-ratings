@@ -44,7 +44,7 @@ export class DataController {
 
     async addNewEntry(uuid: string, type: string): Promise<void> {
         try {
-            const response = await fetch(`${this.apiUrl}/${type}`, {
+            const response = await fetch(`${this.apiUrl}/entry/${type}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -59,6 +59,58 @@ export class DataController {
             }
         } catch (error) {
             console.error('Failed to add new entry:', error);
+        }
+    }
+
+    async authUser(username: string, password: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.apiUrl}/auth`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            return true;
+        } catch (error) {
+            console.error('Failed to check user credentials:', error);
+            return false;
+        }
+    }
+
+    async checkUserName(username: string): Promise<boolean> {
+        try {
+            const response = await fetch(`${this.apiUrl}/user/${username}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    async createUser(username: string, password: string) {
+        try {
+            const response = await fetch(`${this.apiUrl}/user`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            console.error('Failed to create user:', error);
+            throw error;
         }
     }
 }

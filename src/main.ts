@@ -5,4 +5,9 @@ CONFIG.debug.hooks = false;
 
 Hooks.once('init', () => {
     config.logger.log('Initializing module');
+
+    game.settings.register(config.moduleName, 'currentUser', {
+        scope: 'client',
+        config: false,
+    });
 });
