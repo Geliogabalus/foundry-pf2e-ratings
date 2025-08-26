@@ -1,5 +1,5 @@
-import { on } from 'events';
 import { dataController } from './config.ts';
+import { openRatingPopup } from './rating-popup.ts';
 
 export class CompendiumController {
     compendiumBrowser: any;
@@ -7,7 +7,6 @@ export class CompendiumController {
     resultListObserver: MutationObserver | null = null;
 
     ratingElementHash: { [key: string]: HTMLElement } = {};
-    ratingPopup: HTMLElement | null = null;
 
     constructor() {
         Hooks.on('renderCompendiumBrowser', (app: any) => {
@@ -117,47 +116,32 @@ export class CompendiumController {
         const ratings = await dataController.getRatings(activeTab.tabName);
 
         for (let i = 0; i < results.length; i++) {
-            const item = results[i];
-            const itemElement = resultElements[i];
+            const entry = results[i];
+            const id = entry.uuid;
+            const entryElement = resultElements[i];
 
-            if (!ratingElementHash[item.uuid]) {
-                ratingElementHash[item.uuid] = this.createRatingElement(item);
+            if (!ratingElementHash[id]) {
+                ratingElementHash[id] = this.createRatingElement(entry);
             }
-            const ratingElement = ratingElementHash[item.uuid];
+            const ratingElement = ratingElementHash[id];
 
             // Create a new rating entry in the db
-            if (ratings[item.uuid] == null) {
-                dataController.addNewEntry(item.uuid, activeTab.tabName);
-                ratings[item.uuid] = { id: item.uuid, rating: null };
+            if (ratings[id] == null) {
+                dataController.addNewEntry(id, activeTab.tabName);
+                ratings[id] = { id: id, rating: null };
             }
 
-            this.updateRatingElement(ratingElementHash[item.uuid], ratings[item.uuid]?.rating);
-            itemElement.insertBefore(ratingElement, itemElement.querySelector('.level'));
+            this.updateRatingElement(ratingElementHash[id], ratings[id]?.rating);
+            entryElement.insertBefore(ratingElement, entryElement.querySelector('.level'));
         }
     }
 
-    createRatingElement(item: any): HTMLElement {
+    createRatingElement(entry: any): HTMLElement {
         const ratingElement = document.createElement('div');
-        ratingElement.onclick = () => {
-            if (this.ratingPopup) {
-                this.ratingPopup.remove();
-                this.ratingPopup = null;
-            }
+        ratingElement.onclick = (evt) => {
+            evt.stopPropagation();
 
-            const popup = this.renderRatingPopup(item);
-            this.ratingPopup = popup;
-            ratingElement.appendChild(popup);
-
-            setTimeout(() => {
-                const onOutsideClick = (event: MouseEvent) => {
-                    if (!popup.contains(event.target as Node)) {
-                        popup.remove();
-                        this.ratingPopup = null;
-                        document.removeEventListener('click', onOutsideClick);
-                    }
-                }
-                document.addEventListener('click', onOutsideClick);
-            }, 0);
+            openRatingPopup(ratingElement, entry);
         }
         ratingElement.classList.add('rating');
 
@@ -180,11 +164,4 @@ export class CompendiumController {
         }
     }
 
-    renderRatingPopup(item: any) {
-        const popupElement = document.createElement('div');
-        popupElement.classList.add('rating-popup');
-        popupElement.textContent = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.';
-
-        return popupElement;
-    }
 }
