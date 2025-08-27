@@ -95,6 +95,22 @@
 
     .footer {
         padding: 0.5em;
+        display: flex;
+        flex-direction: row;
+        gap: 5px;
+
+        .stars-container {
+            flex: 1;
+
+            i {
+                color: var(--color-pf-tertiary);
+                cursor: pointer;
+
+                &.marked {
+                    color: var(--color-pf-primary);
+                }
+            }
+        }
 
         .user-tag {
             font-style: italic;

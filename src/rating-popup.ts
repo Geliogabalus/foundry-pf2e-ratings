@@ -1,5 +1,6 @@
-import { dataController } from './config.ts';
+import { dataController, logger } from './config.ts';
 import { moduleName } from './config.ts';
+import { EntryRatings } from './data-controller.ts';
 
 let popupInstance: RatingPopup | null = null;
 
@@ -20,7 +21,7 @@ export function openRatingPopup(target: HTMLElement, entry: any): RatingPopup | 
 
 export function closeRatingPopup() {
     if (popupInstance) {
-        popupInstance.remove();
+        popupInstance.close();
         popupInstance = null;
     }
 }
@@ -71,12 +72,10 @@ const createPopupElementTemplate = () => {
 
     const totalValue = document.createElement('div');
     totalValue.classList.add('total-value');
-    totalValue.innerText = '0.0';
     total.appendChild(totalValue);
 
     const totalCount = document.createElement('div');
     totalCount.classList.add('total-count');
-    totalCount.innerText = '0 ratings';
     total.appendChild(totalCount);
 
     const footer = document.createElement('div');
@@ -88,20 +87,27 @@ const createPopupElementTemplate = () => {
 
 const popupElementTemplate = createPopupElementTemplate();
 
+interface CurrentUser {
+    name: string;
+    id: number;
+}
+
 export class RatingPopup {
 
-    currentUser: string | null;
+    currentUser: CurrentUser | null;
+    currentRating: number | null = null;
+    entryRatings: EntryRatings | null = null;
+
     element: HTMLElement;
 
     constructor(public entry: any) {
         this.element = popupElementTemplate.cloneNode(true) as HTMLElement;
 
         this.currentUser = game.settings.get(moduleName, 'currentUser') || null;
-
         const header = this.element.querySelector('.header') as HTMLElement;
         header.innerText = this.entry.name;
 
-        this.updateFooter();
+        this.getData();
 
         setTimeout(() => {
             const onOutsideClick = (event: MouseEvent) => {
@@ -114,14 +120,77 @@ export class RatingPopup {
         }, 0);
     }
 
+    async getData() {
+        this.entryRatings = await dataController.getEntryRatings(this.entry.uuid);
+        if (this.currentUser) {
+            this.currentRating = await dataController.getUserRating(this.currentUser.id, this.entry.uuid);
+        }
+
+        this.updateRatings();
+        this.updateFooter();
+    }
+
+    updateRatings() {
+        const totalRatings = this.entryRatings![1] + this.entryRatings![2] + this.entryRatings![3] + this.entryRatings![4] + this.entryRatings![5];
+        const totalScore = (this.entryRatings![1] * 1 + this.entryRatings![2] * 2 + this.entryRatings![3] * 3 + this.entryRatings![4] * 4 + this.entryRatings![5] * 5);
+        const rating = totalRatings > 0 ? (totalScore / totalRatings) : 0;
+
+        const ratingsContainer = this.element.querySelector('.ratings') as HTMLElement;
+        for (let i = 1; i <= 5; i++) {
+            const ratingEntry = ratingsContainer.querySelector(`.rating-entry[data-value="${i}"]`) as HTMLElement;
+            const ratingBarFill = ratingEntry.querySelector('.rating-bar-fill') as HTMLElement;
+            const count = this.entryRatings![i] || 0;
+            const percentage = totalRatings > 0 ? (count / totalRatings) * 100 : 0;
+            ratingBarFill.style.paddingLeft = `${percentage}%`;
+        }
+
+        const totalValue = this.element.querySelector('.total-value') as HTMLElement;
+        totalValue.innerText = rating > 0 ? rating.toFixed(1) : '?';
+
+        const totalCount = this.element.querySelector('.total-count') as HTMLElement;
+        totalCount.innerText = `${totalRatings} rating${totalRatings !== 1 ? 's' : ''}`;
+    }
+
     updateFooter() {
         const footer = this.element.querySelector('.footer') as HTMLElement;
         footer.innerHTML = '';
 
         if (this.currentUser) {
+            const starsContainer = document.createElement('div');
+            starsContainer.classList.add('stars-container');
+            footer.appendChild(starsContainer);
+            const markRated = () => {
+                const rating = this.currentRating || 0;
+                const stars = starsContainer.querySelectorAll('i');
+                stars.forEach(star => {
+                    const value = parseInt(star.dataset['value'] || '0');
+                    if (rating && value <= rating) {
+                        star.classList.add('marked');
+                    } else {
+                        star.classList.remove('marked');
+                    }
+                });
+            }
+
+            markRated();
+            for (let i = 1; i <= 5; i++) {
+                const starElement = document.createElement('i');
+                starElement.classList.add('fa-solid', 'fa-star');
+                starElement.dataset['value'] = i.toString();
+                starsContainer.appendChild(starElement);
+
+                starElement.onclick = async (evt) => {
+                    evt.preventDefault();
+                    evt.stopPropagation();
+                    this.currentRating = i;
+
+                    markRated();
+                }
+            }
+
             const userTag = document.createElement('span');
             userTag.classList.add('user-tag');
-            userTag.innerText = this.currentUser;
+            userTag.innerText = this.currentUser.name;
             footer.appendChild(userTag);
 
             footer.appendChild(document.createTextNode(' | '));
@@ -169,7 +238,7 @@ export class RatingPopup {
         }
     }
 
-    remove() {
+    close() {
         this.element?.remove();
     }
 
@@ -179,11 +248,14 @@ export class RatingPopup {
         const passwordHash = await window.crypto.subtle.digest("SHA-256", data);
         const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
 
-        const exist = await dataController.authUser(username, passwordHashString);
+        const id = await dataController.authUser(username, passwordHashString);
 
-        if (exist) {
-            game.settings.set(moduleName, 'currentUser', username);
-            this.currentUser = username;
+        if (id) {
+            this.currentUser = {
+                name: username,
+                id: id
+            }
+            game.settings.set(moduleName, 'currentUser', this.currentUser);
             this.updateFooter();
         } else {
             alert('Invalid username or password');
@@ -203,13 +275,15 @@ export class RatingPopup {
         const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
 
         try {
-            await dataController.createUser(username, passwordHashString);
+            const userId = await dataController.createUser(username, passwordHashString);
+            this.currentUser = {
+                name: username,
+                id: userId as number
+            }
+            game.settings.set(moduleName, 'currentUser', this.currentUser);
+            this.updateFooter();
         } catch (error) {
             return;
         }
-
-        game.settings.set(moduleName, 'currentUser', username);
-        this.currentUser = username;
-        this.updateFooter();
     }
 }
