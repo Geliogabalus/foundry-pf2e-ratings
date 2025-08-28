@@ -14,6 +14,7 @@ export class DataSource {
     private insertUserStatement: StatementSync;
     private getEntryRatingsStatement: StatementSync;
     private getUserRatingStatement: StatementSync;
+    private updateUserRatingStatement: StatementSync;
 
     constructor(dbPath: string) {
         this.db = new DatabaseSync(dbPath);
@@ -23,7 +24,7 @@ export class DataSource {
         `);
 
         this.insertEntryStatement = this.db.prepare(`
-            INSERT OR IGNORE INTO Entry (id, typeId, rating) VALUES (?, ?, ?)
+            INSERT OR IGNORE INTO Entry (id, typeId) VALUES (?, ?)
         `);
 
         this.checkUserCredentialsStatement = this.db.prepare(`
@@ -44,6 +45,11 @@ export class DataSource {
 
         this.getUserRatingStatement = this.db.prepare(`
             SELECT rating FROM UserRating WHERE userId = ? AND entryId = ?
+        `);
+
+        this.updateUserRatingStatement = this.db.prepare(`
+            INSERT INTO UserRating (userId, entryId, rating) VALUES (?, ?, ?)
+            ON CONFLICT(userId, entryId) DO UPDATE SET rating = excluded.rating
         `);
     }
 
@@ -73,7 +79,7 @@ export class DataSource {
         }
 
         try {
-            this.insertEntryStatement.run(entry.id, typeId, null);
+            this.insertEntryStatement.run(entry.id, typeId);
         } catch (error) {
             console.error('Failed to add new entry:', error);
             throw error;
@@ -99,6 +105,15 @@ export class DataSource {
             return result.lastInsertRowid as number;
         } catch (error) {
             console.error('Failed to create new user:', error);
+            throw error;
+        }
+    }
+
+    updateUserRating(userId: number, entryId: string, rating: number) {
+        try {
+            this.updateUserRatingStatement.run(userId, entryId, rating);
+        } catch (error) {
+            console.error('Failed to update user rating:', error);
             throw error;
         }
     }

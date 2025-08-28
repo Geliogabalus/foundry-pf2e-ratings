@@ -4,14 +4,21 @@ import { EntryRatings } from './data-controller.ts';
 
 let popupInstance: RatingPopup | null = null;
 
-export function openRatingPopup(target: HTMLElement, entry: any): RatingPopup | null {
-    if (popupInstance?.entry === entry) {
+type onCloseCallback = (updated: boolean) => void;
+
+export interface PopupOptions {
+    entry: any,
+    onClose?: onCloseCallback
+};
+
+export function openRatingPopup(target: HTMLElement, options: PopupOptions): RatingPopup | null {
+    if (popupInstance?.options.entry === options.entry) {
         return popupInstance;
     }
 
     closeRatingPopup();
 
-    popupInstance = new RatingPopup(entry);
+    popupInstance = new RatingPopup(options);
     document.body.appendChild(popupInstance.element);
     const rect = target.getBoundingClientRect();
     popupInstance.element.style.top = `${rect.bottom + window.scrollY}px`;
@@ -95,17 +102,18 @@ interface CurrentUser {
 export class RatingPopup {
 
     currentUser: CurrentUser | null;
+    originalRating: number | null = null;
     currentRating: number | null = null;
     entryRatings: EntryRatings | null = null;
 
     element: HTMLElement;
 
-    constructor(public entry: any) {
+    constructor(public options: PopupOptions) {
         this.element = popupElementTemplate.cloneNode(true) as HTMLElement;
 
         this.currentUser = game.settings.get(moduleName, 'currentUser') || null;
         const header = this.element.querySelector('.header') as HTMLElement;
-        header.innerText = this.entry.name;
+        header.innerText = this.options.entry.name;
 
         this.getData();
 
@@ -121,9 +129,9 @@ export class RatingPopup {
     }
 
     async getData() {
-        this.entryRatings = await dataController.getEntryRatings(this.entry.uuid);
+        this.entryRatings = await dataController.getEntryRatings(this.options.entry.uuid);
         if (this.currentUser) {
-            this.currentRating = await dataController.getUserRating(this.currentUser.id, this.entry.uuid);
+            this.originalRating = this.currentRating = await dataController.getUserRating(this.currentUser.id, this.options.entry.uuid);
         }
 
         this.updateRatings();
@@ -172,7 +180,6 @@ export class RatingPopup {
                 });
             }
 
-            markRated();
             for (let i = 1; i <= 5; i++) {
                 const starElement = document.createElement('i');
                 starElement.classList.add('fa-solid', 'fa-star');
@@ -187,6 +194,7 @@ export class RatingPopup {
                     markRated();
                 }
             }
+            markRated();
 
             const userTag = document.createElement('span');
             userTag.classList.add('user-tag');
@@ -238,13 +246,28 @@ export class RatingPopup {
         }
     }
 
-    close() {
+    async close() {
+        if (this.currentUser && this.currentRating && this.currentRating !== this.originalRating) {
+            await this.saveCurrentRating();
+            if (this.options.onClose) this.options.onClose(true);
+        } else {
+            if (this.options.onClose) this.options.onClose(false);
+        }
+
         this.element?.remove();
+    }
+
+    async saveCurrentRating() {
+        try {
+            await dataController.updateUserRating(this.currentUser!.id, this.options.entry.uuid, this.currentRating!);
+        } catch (error) {
+            logger.error('Failed to save rating:', error);
+        }
     }
 
     async checkCredentials(username: string, password: string) {
         const encoder = new TextEncoder();
-        const data = encoder.encode(password);
+        const data = encoder.encode(password + 'PF2eRatingsSalt');
         const passwordHash = await window.crypto.subtle.digest("SHA-256", data);
         const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
 
@@ -270,7 +293,7 @@ export class RatingPopup {
         }
 
         const encoder = new TextEncoder();
-        const data = encoder.encode(password);
+        const data = encoder.encode(password + 'PF2eRatingsSalt');
         const passwordHash = await window.crypto.subtle.digest("SHA-256", data);
         const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
 

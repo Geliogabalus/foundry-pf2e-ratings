@@ -16,8 +16,6 @@ export interface EntryRatings {
 
 export class DataController {
 
-    cache: { [key: string]: Record<string, RatingItem> } = {};
-
     constructor(private apiUrl: string) {
     }
 
@@ -35,13 +33,8 @@ export class DataController {
     }
 
     async getRatings(type: string): Promise<Record<string, RatingItem>> {
-        if (this.cache[type]) {
-            return this.cache[type];
-        }
-
         try {
             const ratings = await this.fetchRatings(type);
-            this.cache[type] = ratings;
             return ratings;
         } catch (error) {
             logger.error(`Error fetching ratings for type ${type}:`, error);
@@ -78,8 +71,6 @@ export class DataController {
                 },
                 body: JSON.stringify({ id: uuid })
             });
-
-            delete this.cache[type];
 
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
@@ -163,6 +154,24 @@ export class DataController {
             return result.rating;
         } catch (error) {
             return null;
+        }
+    }
+
+    async updateUserRating(userId: number, entryId: string, rating: number): Promise<void> {
+        try {
+            const response = await fetch(`${this.apiUrl}/user/${userId}/${entryId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ rating })
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+        } catch (error) {
+            throw error;
         }
     }
 }

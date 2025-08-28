@@ -78,6 +78,27 @@ app.get('/user/:id/:entryId', (request: Request, response: Response) => {
   response.status(200).send({ rating });
 });
 
+app.put('/user/:id/:entryId', (request: Request, response: Response) => {
+  const userId = request.params.id;
+  const entryId = request.params.entryId;
+  const { rating } = request.body;
+
+  if (typeof rating !== 'number' || rating < 1 || rating > 5) {
+    response.status(400).send({ error: 'Rating must be a number between 1 and 5' });
+    return;
+  }
+
+  try {
+    dataSource.updateUserRating(Number(userId), entryId, rating);
+    response.status(200).send({ message: 'Rating updated successfully' });
+  } catch (error) {
+    response.status(500).send({
+      error: 'Failed to update rating',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 app.post('/auth', (request: Request, response: Response) => {
 
   const { username, password } = request.body;

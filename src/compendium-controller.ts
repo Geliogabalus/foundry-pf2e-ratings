@@ -1,4 +1,5 @@
 import { dataController } from './config.ts';
+import { RatingItem } from './data-controller.ts';
 import { openRatingPopup } from './rating-popup.ts';
 
 export class CompendiumController {
@@ -6,6 +7,7 @@ export class CompendiumController {
     tabObserver: MutationObserver | null = null;
     resultListObserver: MutationObserver | null = null;
 
+    ratings: Record<string, RatingItem> = {}
     ratingElementHash: { [key: string]: HTMLElement } = {};
 
     constructor() {
@@ -74,7 +76,7 @@ export class CompendiumController {
         });
     }
 
-    updateTab() {
+    async updateTab() {
         if (this.resultListObserver) {
             this.resultListObserver.disconnect();
             this.resultListObserver = null;
@@ -85,6 +87,8 @@ export class CompendiumController {
         switch (tabName) {
             case 'spell': {
                 const resultList = this.compendiumBrowser.$state.resultList;
+                await this.updateRatings(tabName);
+
                 if (resultList) {
                     this.updateResultList();
 
@@ -105,15 +109,13 @@ export class CompendiumController {
         }
     }
 
-    async updateResultList() {
+    updateResultList() {
         const activeTab = this.compendiumBrowser.activeTab;
         //const tabName = activeTab.tabName;
         const results = activeTab.results.slice(0, activeTab.resultLimit);
         const resultElements = Array.from(this.compendiumBrowser.$state.resultList.children) as HTMLElement[];
 
         const ratingElementHash = this.ratingElementHash;
-
-        const ratings = await dataController.getRatings(activeTab.tabName);
 
         for (let i = 0; i < results.length; i++) {
             const entry = results[i];
@@ -126,12 +128,12 @@ export class CompendiumController {
             const ratingElement = ratingElementHash[id];
 
             // Create a new rating entry in the db
-            if (ratings[id] == null) {
+            if (this.ratings[id] == null) {
                 dataController.addNewEntry(id, activeTab.tabName);
-                ratings[id] = { id: id, rating: null };
+                this.ratings[id] = { id: id, rating: null };
             }
 
-            this.updateRatingElement(ratingElementHash[id], ratings[id]?.rating);
+            this.updateRatingElement(ratingElementHash[id], this.ratings[id]?.rating);
             entryElement.insertBefore(ratingElement, entryElement.querySelector('.level'));
         }
     }
@@ -140,8 +142,16 @@ export class CompendiumController {
         const ratingElement = document.createElement('div');
         ratingElement.onclick = (evt) => {
             evt.stopPropagation();
-
-            openRatingPopup(ratingElement, entry);
+            openRatingPopup(ratingElement, {
+                entry: entry,
+                onClose: (updated: boolean) => {
+                    if (updated) {
+                        this.updateRatings(this.compendiumBrowser.activeTab.tabName).then(() => {
+                            this.updateRatingElement(ratingElement, this.ratings[entry.uuid]?.rating);
+                        });
+                    }
+                }
+            });
         }
         ratingElement.classList.add('rating');
 
@@ -162,6 +172,10 @@ export class CompendiumController {
         } else {
             ratingText.textContent = rating.toFixed(1);
         }
+    }
+
+    async updateRatings(type: string) {
+        this.ratings = await dataController.getRatings(type);
     }
 
 }
