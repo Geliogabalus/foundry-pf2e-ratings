@@ -21,7 +21,7 @@ export class DataController {
 
     private async fetchRatings(type: string): Promise<Record<string, RatingItem>> {
         try {
-            const response = await fetch(`${this.apiUrl}/ratings/${type}`);
+            const response = await fetch(`${this.apiUrl}/entry/${type}`);
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
@@ -32,7 +32,7 @@ export class DataController {
         }
     }
 
-    async getRatings(type: string): Promise<Record<string, RatingItem>> {
+    async getRatingsByType(type: string): Promise<Record<string, RatingItem>> {
         try {
             const ratings = await this.fetchRatings(type);
             return ratings;
@@ -80,67 +80,22 @@ export class DataController {
         }
     }
 
-    async authUser(username: string, password: string): Promise<number | null> {
+    async getUserData(authId: string): Promise<any> {
         try {
-            const response = await fetch(`${this.apiUrl}/auth`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-
+            const response = await fetch(`${this.apiUrl}/oauth2/${authId}`);
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                logger.error(`Failed to fetch user data`);
+                return null;
             }
 
             const result = await response.json();
-            if (result.userId) {
-                return result.userId;
+            if (result.id) {
+                return result;
             }
-
             return null;
         } catch (error) {
-            logger.error('Failed to check user credentials:', error);
+            logger.error('Error fetching user data:', error);
             return null;
-        }
-    }
-
-    async checkUserName(username: string): Promise<boolean> {
-        try {
-            const response = await fetch(`${this.apiUrl}/user/${username}`);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            return true;
-        } catch (error) {
-            return false;
-        }
-    }
-
-    async createUser(username: string, password: string): Promise<number | null> {
-        try {
-            const response = await fetch(`${this.apiUrl}/user`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password })
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const result = await response.json();
-            if (result.userId) {
-                return result.userId;
-            }
-
-            throw new Error(`HTTP error! status: ${response.status}`);
-        } catch (error) {
-            logger.error('Failed to create user:', error);
-            throw error;
         }
     }
 
@@ -148,11 +103,12 @@ export class DataController {
         try {
             const response = await fetch(`${this.apiUrl}/user/${userId}/${entryId}`);
             if (!response.ok) {
-                throw new Error(`Rating not found`);
+                logger.error(`User rating not found`);
             }
             const result = await response.json();
             return result.rating;
         } catch (error) {
+            logger.error('Error fetching user rating:', error);
             return null;
         }
     }

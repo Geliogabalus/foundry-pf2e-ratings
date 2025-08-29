@@ -101,6 +101,11 @@ interface CurrentUser {
 
 export class RatingPopup {
 
+    timerMax = 120;
+    timerInterval = 2;
+    timerLeft = this.timerMax;
+    timer: NodeJS.Timeout | null = null;
+
     currentUser: CurrentUser | null;
     originalRating: number | null = null;
     currentRating: number | null = null;
@@ -215,38 +220,56 @@ export class RatingPopup {
             }
             footer.appendChild(logoutLink);
         } else {
-            const loginLink = document.createElement('a');
-            loginLink.innerText = 'Log in';
-            loginLink.onclick = (evt) => {
+            const loginButton = document.createElement('button');
+            loginButton.onclick = (evt) => {
                 evt.preventDefault();
                 evt.stopPropagation();
-                const username = prompt('Enter your username:');
-                if (!username) return;
-                const password = prompt('Enter your password:');
-                if (!password) return;
 
-                this.checkCredentials(username, password);
+                const authId = foundry.utils.randomID(42);
+                const discordUrl = `https://discord.com/oauth2/authorize?client_id=1410957967163002900&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Foauth2&scope=identify&state=${authId}`;
+                window.open(discordUrl, '_blank');
+
+                loginButton.style.display = 'none';
+                const waitingText = document.createElement('span');
+                waitingText.innerText = 'Waiting for authentication...';
+                footer.appendChild(waitingText);
+
+                this.timerLeft = this.timerMax;
+                this.timer = setInterval(async () => {
+                  this.timerLeft -= this.timerInterval;
+
+                  const user = await dataController.getUserData(authId);
+
+                  if (this.timerLeft <= 0 || user) {
+
+                    if (user) {
+                        this.currentUser = {
+                            name: user.username,
+                            id: user.id
+                        };
+                        game.settings.set(moduleName, 'currentUser', this.currentUser);
+                    }
+
+                    this.stopTimer();
+                    this.getData();
+                  }
+                }, this.timerInterval * 1000);
             }
-            footer.appendChild(loginLink);
-            footer.appendChild(document.createTextNode(' | '));
+            loginButton.innerText = 'Log in with Discord';
+            footer.appendChild(loginButton);
+        }
+    }
 
-            const registerLink = document.createElement('a');
-            registerLink.innerText = 'Register';
-            registerLink.onclick = (evt) => {
-                evt.preventDefault();
-                evt.stopPropagation();
-                const username = prompt('Enter your username:');
-                if (!username) return;
-                const password = prompt('Enter your password:');
-                if (!password) return;
-
-                this.createNewUser(username, password);
-            }
-            footer.appendChild(registerLink);
+    private stopTimer() {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
         }
     }
 
     async close() {
+        this.stopTimer();
+
         if (this.currentUser && this.currentRating && this.currentRating !== this.originalRating) {
             await this.saveCurrentRating();
             if (this.options.onClose) this.options.onClose(true);
@@ -262,51 +285,6 @@ export class RatingPopup {
             await dataController.updateUserRating(this.currentUser!.id, this.options.entry.uuid, this.currentRating!);
         } catch (error) {
             logger.error('Failed to save rating:', error);
-        }
-    }
-
-    async checkCredentials(username: string, password: string) {
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password + 'PF2eRatingsSalt');
-        const passwordHash = await window.crypto.subtle.digest("SHA-256", data);
-        const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-        const id = await dataController.authUser(username, passwordHashString);
-
-        if (id) {
-            this.currentUser = {
-                name: username,
-                id: id
-            }
-            game.settings.set(moduleName, 'currentUser', this.currentUser);
-            this.updateFooter();
-        } else {
-            alert('Invalid username or password');
-        }
-    }
-
-    async createNewUser(username: string, password: string) {
-        const userExists = await dataController.checkUserName(username);
-        if (userExists) {
-            alert('User with such name already exists');
-            return;
-        }
-
-        const encoder = new TextEncoder();
-        const data = encoder.encode(password + 'PF2eRatingsSalt');
-        const passwordHash = await window.crypto.subtle.digest("SHA-256", data);
-        const passwordHashString = Array.from(new Uint8Array(passwordHash)).map(b => b.toString(16).padStart(2, '0')).join('');
-
-        try {
-            const userId = await dataController.createUser(username, passwordHashString);
-            this.currentUser = {
-                name: username,
-                id: userId as number
-            }
-            game.settings.set(moduleName, 'currentUser', this.currentUser);
-            this.updateFooter();
-        } catch (error) {
-            return;
         }
     }
 }

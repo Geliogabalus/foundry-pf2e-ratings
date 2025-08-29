@@ -5,6 +5,9 @@
   "esmodules": [
     "main.js"
   ],
+  "styles": [
+    "main.css"
+  ],
   "compatibility": {
     "minimum": "13",
     "verified": "13"

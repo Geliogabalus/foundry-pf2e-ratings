@@ -15,7 +15,7 @@ const dataSource = new DataSource(process.env.DB_PATH || './database.db');
 
 const PORT = process.env.PORT;
 
-app.get('/ratings/:type', (request: Request, response: Response) => {
+app.get('/entry/:type', (request: Request, response: Response) => {
   const type = request.params.type;
   try {
     const ratings = dataSource.getRatings(type);
@@ -73,7 +73,7 @@ app.get('/user/:id/:entryId', (request: Request, response: Response) => {
   const userId = request.params.id;
   const entryId = request.params.entryId;
 
-  const rating = dataSource.getUserRating(Number(userId), entryId);
+  const rating = dataSource.getUserRating(userId, entryId);
 
   response.status(200).send({ rating });
 });
@@ -89,26 +89,13 @@ app.put('/user/:id/:entryId', (request: Request, response: Response) => {
   }
 
   try {
-    dataSource.updateUserRating(Number(userId), entryId, rating);
+    dataSource.updateUserRating(userId, entryId, rating);
     response.status(200).send({ message: 'Rating updated successfully' });
   } catch (error) {
     response.status(500).send({
       error: 'Failed to update rating',
       message: error instanceof Error ? error.message : 'Unknown error'
     });
-  }
-});
-
-app.post('/auth', (request: Request, response: Response) => {
-
-  const { username, password } = request.body;
-
-  const id = dataSource.checkAuth(username, password);
-
-  if (id != null) {
-    response.status(200).send({ message: 'Authentication successful', userId: id });
-  } else {
-    response.status(401).send({ error: 'Invalid username or password' });
   }
 });
 
@@ -119,28 +106,58 @@ app.listen(PORT, () => {
   throw new Error(error.message);
 });
 
-app.get('/user/:username', (request: Request, response: Response) => {
-  const username = request.params.username;
+const currentAuthUserData: Record<string, any> = {};
 
-  const exist = dataSource.checkUserName(username);
-  console.log(exist);
-  if (!exist) {
-    response.status(404).send({ error: 'Username does not exist' });
-    return;
+app.get('/oauth2', async ({ query }, response) => {
+  const code = query.code as string;
+  const state = query.state as string;
+
+  if (code) {
+    try {
+      const tokenResponseData = await fetch('https://discord.com/api/oauth2/token', {
+        method: 'POST',
+        body: new URLSearchParams({
+          client_id: process.env.DISCORD_CLIENT_ID as string,
+          client_secret: process.env.DISCORD_CLIENT_SECRET as string,
+          code,
+          grant_type: 'authorization_code',
+          redirect_uri: `http://localhost:${process.env.PORT}/oauth2`,
+          scope: 'identify',
+          state: state
+        }).toString(),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      const oauthData: any = await tokenResponseData.json();
+      const userData = await fetch('https://discord.com/api/users/@me', {
+	      headers: {
+		      authorization: `${oauthData.token_type} ${oauthData.access_token}`,
+	      },
+      });
+
+      const user = await userData.json() as any;
+
+      dataSource.createUser(user.id);
+      currentAuthUserData[state] = user;
+    } catch (error) {
+      // NOTE: An unauthorized token will not throw an error
+      // tokenResponseData.statusCode will be 401
+      console.error(error);
+    }
   }
-  response.status(200).send({ message: 'Username exists' });
+
+  return response.sendFile('oauth2.html', { root: '.' });
 });
 
-app.post('/user', (request: Request, response: Response) => {
-  const { username, password } = request.body;
+app.get('/oauth2/:state', (request, response) => {
+  const state = request.params.state;
+  const userData = currentAuthUserData[state];
 
-  try {
-    const id = dataSource.createUser(username, password);
-    response.status(201).send({ message: 'User created successfully', userId: id });
-  } catch (error) {
-    response.status(500).send({
-      error: 'Failed to create new user',
-      message: error instanceof Error ? error.message : 'Unknown error'
-    });
+  if (userData) {
+    return response.status(200).send(userData);
+  } else {
+    return response.status(200).send({ error: 'User data not found' });
   }
 });

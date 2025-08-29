@@ -9,8 +9,6 @@ export class DataSource {
     private db: DatabaseSync;
     private selectRatingsByTypeStatement: StatementSync;
     private insertEntryStatement: StatementSync;
-    private checkUserCredentialsStatement: StatementSync;
-    private checkUserNameExistsStatement: StatementSync;
     private insertUserStatement: StatementSync;
     private getEntryRatingsStatement: StatementSync;
     private getUserRatingStatement: StatementSync;
@@ -27,16 +25,8 @@ export class DataSource {
             INSERT OR IGNORE INTO Entry (id, typeId) VALUES (?, ?)
         `);
 
-        this.checkUserCredentialsStatement = this.db.prepare(`
-            SELECT id FROM User WHERE name = ? AND password = ?
-        `);
-
-        this.checkUserNameExistsStatement = this.db.prepare(`
-            SELECT 1 FROM User WHERE name = ?
-        `);
-
         this.insertUserStatement = this.db.prepare(`
-            INSERT INTO User (name, password) VALUES (?, ?)
+            INSERT OR IGNORE INTO User (id) VALUES (?)
         `);
 
         this.getEntryRatingsStatement = this.db.prepare(`
@@ -67,7 +57,7 @@ export class DataSource {
         return result;
     }
 
-    getUserRating(userId: number, entryId: string) {
+    getUserRating(userId: string, entryId: string) {
         const result = this.getUserRatingStatement.get(userId, entryId);
         return result?.rating ?? null;
     }
@@ -86,30 +76,16 @@ export class DataSource {
         }
     }
 
-    checkAuth(username: string, password: string): number | null {
-        const result = this.checkUserCredentialsStatement.get(username, password);
-        if (result?.id) {
-            return result.id as number;
-        }
-        return null;
-    }
-
-    checkUserName(username: string): boolean {
-        const result = this.checkUserNameExistsStatement.get(username);
-        return !!result;
-    }
-
-    createUser(username: string, password: string): number {
+    createUser(id: string) {
         try {
-            const result = this.insertUserStatement.run(username, password);
-            return result.lastInsertRowid as number;
+            this.insertUserStatement.run(id);
         } catch (error) {
             console.error('Failed to create new user:', error);
             throw error;
         }
     }
 
-    updateUserRating(userId: number, entryId: string, rating: number) {
+    updateUserRating(userId: string, entryId: string, rating: number) {
         try {
             this.updateUserRatingStatement.run(userId, entryId, rating);
         } catch (error) {

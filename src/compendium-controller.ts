@@ -175,7 +175,7 @@ export class CompendiumController {
     }
 
     async updateRatings(type: string) {
-        this.ratings = await dataController.getRatings(type);
+        this.ratings = await dataController.getRatingsByType(type);
     }
 
 }
