@@ -15,7 +15,7 @@
     "noUnusedParameters": true,
     "forceConsistentCasingInFileNames": true,
     "esModuleInterop": true,
-    "sourceMap": true,
+    "sourceMap": false,
     "isolatedModules": true,
     "baseUrl": ".",
     "rootDir": "./src",

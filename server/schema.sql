@@ -26,8 +26,6 @@ CREATE TABLE "Rating" (
 
 CREATE TABLE "User" (
 	"id"	INTEGER,
-	"name"	TEXT UNIQUE,
-	"password"	TEXT,
 	PRIMARY KEY("id" AUTOINCREMENT)
 )
 

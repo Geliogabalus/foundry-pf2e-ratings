@@ -9,5 +9,5 @@ export const baseId = `${moduleName}`;
 
 export const logger = new Logger();
 export const compendiumController = new CompendiumController();
-//export const dataController = new DataController('https://geliogabalus-pf2e-ratings.duckdns.org');
-export const dataController = new DataController('http://localhost:8080');
+export const dataController = new DataController('https://geliogabalus-pf2e-ratings.duckdns.org');
+//export const dataController = new DataController('http://localhost:8080');

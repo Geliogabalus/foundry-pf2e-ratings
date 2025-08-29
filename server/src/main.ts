@@ -5,15 +5,25 @@ import { DataSource } from './data/dataSource.js';
 
 // configures dotenv to work in your application
 dotenv.config();
-const app = express();
-app.use(cors({
-  origin: '*',
-}));
-app.use(express.json());
 
 const dataSource = new DataSource(process.env.DB_PATH || './database.db');
 
+const app = express();
+
+app.use(express.static('static'));
+app.use(cors({ origin: '*' }));
+app.use(express.json());
+
 const PORT = process.env.PORT;
+
+app.listen(PORT, () => {
+  console.log('Server running at PORT: ', PORT);
+}).on('error', (error) => {
+  // gracefully handle error
+  throw new Error(error.message);
+});
+
+// Entries
 
 app.get('/entry/:type', (request: Request, response: Response) => {
   const type = request.params.type;
@@ -68,6 +78,8 @@ app.get('/entry/:id/ratings', (request: Request, response: Response) => {
   response.status(200).send(ratings);
 });
 
+// User Ratings
+
 app.get('/user/:id/:entryId', (request: Request, response: Response) => {
 
   const userId = request.params.id;
@@ -99,12 +111,7 @@ app.put('/user/:id/:entryId', (request: Request, response: Response) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log('Server running at PORT: ', PORT);
-}).on('error', (error) => {
-  // gracefully handle error
-  throw new Error(error.message);
-});
+// OAuth2 with Discord
 
 const currentAuthUserData: Record<string, any> = {};
 
@@ -121,7 +128,7 @@ app.get('/oauth2', async ({ query }, response) => {
           client_secret: process.env.DISCORD_CLIENT_SECRET as string,
           code,
           grant_type: 'authorization_code',
-          redirect_uri: `http://localhost:${process.env.PORT}/oauth2`,
+          redirect_uri: `${process.env.APP_URL}/oauth2`,
           scope: 'identify',
           state: state
         }).toString(),
@@ -131,6 +138,7 @@ app.get('/oauth2', async ({ query }, response) => {
       });
 
       const oauthData: any = await tokenResponseData.json();
+
       const userData = await fetch('https://discord.com/api/users/@me', {
 	      headers: {
 		      authorization: `${oauthData.token_type} ${oauthData.access_token}`,

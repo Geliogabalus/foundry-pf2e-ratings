@@ -12,9 +12,7 @@ export interface EntryType extends Record<string, SQLOutputValue> {
 }
 
 export interface User extends Record<string, SQLOutputValue> {
-    id: number;
-    name: string;
-    password: string;
+    id: string;
 }
 
 export interface UserRating extends Record<string, SQLOutputValue> {
