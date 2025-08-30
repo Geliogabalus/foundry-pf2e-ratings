@@ -8,7 +8,7 @@ To rate the item user need to log in via Discord.
 
 ## Usage
 
-- **Installation**:
+### Installation:
   1. Navigate to **Add-on Modules** menu.
   2. Click **Install Module** and paste the following manifest URL:
      ```
@@ -16,7 +16,7 @@ To rate the item user need to log in via Discord.
      ```
   3. Click **Install** and enable the module in your world settings.
 
-- **Functionality**:
+### Functionality:
   You should see the ratings in the compendium in the `spells` tab. By clicking on the current rating you will see the window with current ratings for the item and invitation to log in via Discord. After logging in you will be able to rate the spell. The log in persists in the foundry settings in the client browser. Only user id and name are stored in the settings. 
 
 ## Support
