@@ -8,8 +8,10 @@ export interface RatingElementOptions extends ComponentOptions {
 }
 
 export class RatingElement extends Component<RatingElementOptions> {
+    declare element: HTMLDivElement;
+
     render() {
-        const element = document.createElement('div');
+        const element = this.element = document.createElement('div');
         element.onclick = (evt) => {
             evt.stopPropagation();
             openRatingPopup(element, {
@@ -33,7 +35,19 @@ export class RatingElement extends Component<RatingElementOptions> {
         const ratingText = this.element.querySelector('span') as HTMLElement;
         if (!rating) {
             ratingText.textContent = '?';
+            this.element.style.color = 'unset';
         } else {
+            this.element.style.color = '#ff4545';
+            if (rating > 2) {
+                this.element.style.color = '#ffa534';
+            }
+            if (rating > 3) {
+                this.element.style.color = '#ffe234';
+            }
+            if (rating > 4) {
+                this.element.style.color = '#57e32c';
+            }
+
             ratingText.textContent = rating.toFixed(1);
         }
     }

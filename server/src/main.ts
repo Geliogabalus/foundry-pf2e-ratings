@@ -1,5 +1,7 @@
 import express, { Request, Response } from 'express';
+import fs from 'fs';
 import cors from 'cors';
+import morgan from 'morgan';
 import dotenv from 'dotenv';
 import { DataSource } from './data/dataSource.js';
 
@@ -13,6 +15,9 @@ const app = express();
 app.use(express.static('static'));
 app.use(cors({ origin: '*' }));
 app.use(express.json());
+
+const logFile = fs.createWriteStream('./logFile.log', {flags: 'w'});
+app.use(morgan('combined', { stream: logFile }));
 
 const PORT = process.env.PORT;
 

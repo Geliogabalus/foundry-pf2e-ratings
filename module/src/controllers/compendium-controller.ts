@@ -1,6 +1,7 @@
 import { RatingItem } from '../data/data-source.ts';
 import { Module } from '../module.ts';
 import { RatingElement } from '../components/rating-element.ts';
+import { createComponent } from 'src/components/component.ts';
 
 declare module '#configuration' {
     interface HookConfig {
@@ -135,7 +136,7 @@ export class CompendiumController {
             const entryElement = resultElements[i];
 
             if (!ratingElementHash[id]) {
-                ratingElementHash[id] = new RatingElement({
+                ratingElementHash[id] = createComponent(RatingElement,{
                     entry: entry,
                     onClose: (updated: boolean) => {
                         if (updated) {
@@ -144,7 +145,7 @@ export class CompendiumController {
                             });
                         }
                     }
-                });
+                }) as RatingElement;
             }
             // Create a new rating entry in the db
             if (this.ratings[id] == null) {

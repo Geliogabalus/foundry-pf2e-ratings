@@ -1,7 +1,7 @@
 import { CurrentUser } from '../module.ts';
 import { moduleName } from '../config.ts';
 import { Entry, EntryRatings } from '../data/data-source.ts';
-import { Component, ComponentOptions } from './component.ts';
+import { Component, ComponentOptions, createComponent } from './component.ts';
 
 let popupInstance: RatingPopup | null = null;
 
@@ -12,7 +12,7 @@ export function openRatingPopup(target: HTMLElement, options: RatingPopupOptions
 
     closeRatingPopup();
 
-    popupInstance = new RatingPopup(options);
+    popupInstance = createComponent(RatingPopup, options) as RatingPopup;
     document.body.appendChild(popupInstance.element);
     const rect = target.getBoundingClientRect();
     popupInstance.element.style.top = `${rect.bottom + window.scrollY}px`;
@@ -27,66 +27,41 @@ export function closeRatingPopup() {
     }
 }
 
-const createPopupElementTemplate = () => {
-    const element = document.createElement('div');
-    element.classList.add('rating-popup');
-
-    const header = document.createElement('div');
-    header.classList.add('header');
-    element.appendChild(header);
-
-    const body = document.createElement('div');
-    body.classList.add('body');
-    element.appendChild(body);
-
-    const ratings = document.createElement('div');
-    ratings.classList.add('ratings');
-
-    for (let i = 1; i <= 5; i++) {
-        const ratingEntry = document.createElement('div');
-        ratingEntry.classList.add('rating-entry');
-        ratingEntry.dataset['value'] = i.toString();
-        ratings.appendChild(ratingEntry);
-
-        const ratingValue = document.createElement('div');
-        ratingValue.classList.add('rating-value');
-        ratingValue.innerText = i.toString();
-        ratingEntry.appendChild(ratingValue);
-
-        const ratingBarWrapper = document.createElement('div');
-        ratingBarWrapper.classList.add('rating-bar-wrapper');
-        ratingEntry.appendChild(ratingBarWrapper);
-
-        const ratingBarBackground = document.createElement('div');
-        ratingBarBackground.classList.add('rating-bar-background');
-        ratingBarWrapper.appendChild(ratingBarBackground);
-
-        const ratingBarFill = document.createElement('div');
-        ratingBarFill.classList.add('rating-bar-fill');
-        ratingBarBackground.appendChild(ratingBarFill);
-    }
-    body.appendChild(ratings);
-
-    const total = document.createElement('div');
-    total.classList.add('total');
-    body.appendChild(total);
-
-    const totalValue = document.createElement('div');
-    totalValue.classList.add('total-value');
-    total.appendChild(totalValue);
-
-    const totalCount = document.createElement('div');
-    totalCount.classList.add('total-count');
-    total.appendChild(totalCount);
-
-    const footer = document.createElement('div');
-    footer.classList.add('footer');
-    element.appendChild(footer);
-
-    return element;
-}
-
-const popupElementTemplate = createPopupElementTemplate();
+const parser = new DOMParser();
+const template = parser.parseFromString(/* html */`
+    <div class="rating-popup">
+        <div class="header"></div>
+        <div class="body">
+            <div class="ratings">
+                <div class="rating-entry" data-value="1">
+                    <div class="rating-value">1</div>
+                    <div class="rating-bar-wrapper"><div class="rating-bar-background"><div class="rating-bar-fill"></div></div></div>
+                </div>
+                <div class="rating-entry" data-value="2">
+                    <div class="rating-value">2</div>
+                    <div class="rating-bar-wrapper"><div class="rating-bar-background"><div class="rating-bar-fill"></div></div></div>
+                </div>
+                <div class="rating-entry" data-value="3">
+                    <div class="rating-value">3</div>
+                    <div class="rating-bar-wrapper"><div class="rating-bar-background"><div class="rating-bar-fill"></div></div></div>
+                </div>
+                <div class="rating-entry" data-value="4">
+                    <div class="rating-value">4</div>
+                    <div class="rating-bar-wrapper"><div class="rating-bar-background"><div class="rating-bar-fill"></div></div></div>
+                </div>
+                <div class="rating-entry" data-value="5">
+                    <div class="rating-value">5</div>
+                    <div class="rating-bar-wrapper"><div class="rating-bar-background"><div class="rating-bar-fill"></div></div></div>
+                </div>
+            </div>
+            <div class="total">
+                <div class="total-value"></div>
+                <div class="total-count"></div>
+            </div>
+        </div>
+        <div class="footer"></div>
+    </div>
+`, 'text/html').body.firstChild as HTMLElement;
 
 export interface RatingPopupOptions extends ComponentOptions {
     entry: Entry,
@@ -94,6 +69,7 @@ export interface RatingPopupOptions extends ComponentOptions {
 };
 
 export class RatingPopup extends Component<RatingPopupOptions> {
+    declare element: HTMLDivElement;
 
     timerMax = 120;
     timerInterval = 2;
@@ -106,13 +82,11 @@ export class RatingPopup extends Component<RatingPopupOptions> {
     entryRatings: EntryRatings | null = null;
 
     override render(): HTMLElement {
-        const element = popupElementTemplate.cloneNode(true) as HTMLElement;
-
-        this.currentUser = (game as ReadyGame).settings.get(moduleName, 'currentUser') || null;
+        this.element = template.cloneNode(true) as HTMLDivElement;
         const header = this.element.querySelector('.header') as HTMLElement;
         header.innerText = this.options.entry.name;
 
-        this.getData();
+        this.update();
 
         setTimeout(() => {
             const onOutsideClick = (event: MouseEvent) => {
@@ -124,10 +98,11 @@ export class RatingPopup extends Component<RatingPopupOptions> {
             document.addEventListener('click', onOutsideClick);
         }, 0);
 
-        return element;
+        return this.element;
     }
 
-    async getData() {
+    async update() {
+        this.currentUser = (game as ReadyGame).settings.get(moduleName, 'currentUser') || null;
         this.entryRatings = await this.module.dataSource.getEntryRatings(this.options.entry.uuid);
         if (this.currentUser) {
             this.originalRating = this.currentRating = await this.module.dataSource.getUserRating(this.currentUser.id, this.options.entry.uuid);
@@ -220,7 +195,7 @@ export class RatingPopup extends Component<RatingPopupOptions> {
                 evt.stopPropagation();
 
                 const authId = foundry.utils.randomID(42);
-                const discordUrl = `https://discord.com/oauth2/authorize?client_id=1410957967163002900&response_type=code&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Foauth2&scope=identify&state=${authId}`;
+                const discordUrl = `https://discord.com/oauth2/authorize?client_id=1410957967163002900&response_type=code&redirect_uri=https%3A%2F%2Fgeliogabalus-pf2e-ratings.duckdns.org%2Foauth2&scope=identify&state=${authId}`;
                 window.open(discordUrl, '_blank');
 
                 loginButton.style.display = 'none';
@@ -245,7 +220,7 @@ export class RatingPopup extends Component<RatingPopupOptions> {
                         }
 
                         this.stopTimer();
-                        this.getData();
+                        this.update();
                     }
                 }, this.timerInterval * 1000);
             }
