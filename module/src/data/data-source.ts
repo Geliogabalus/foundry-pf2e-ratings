@@ -1,4 +1,4 @@
-import { logger } from './config.ts';
+import { error as logError } from '../config.ts';
 
 export interface RatingItem {
     id: string;
@@ -7,6 +7,7 @@ export interface RatingItem {
 
 export interface Entry {
     uuid: string;
+    name: string;
 }
 
 export interface EntryRatings {
@@ -14,7 +15,7 @@ export interface EntryRatings {
     [key: number]: number;
 }
 
-export class DataController {
+export class DataSource {
 
     constructor(private apiUrl: string) {
     }
@@ -27,7 +28,7 @@ export class DataController {
             }
             return await response.json();
         } catch (error) {
-            logger.error('Failed to fetch ratings:', error);
+            logError('Failed to fetch ratings:', error);
             throw error;
         }
     }
@@ -37,7 +38,7 @@ export class DataController {
             const ratings = await this.fetchRatings(type);
             return ratings;
         } catch (error) {
-            logger.error(`Error fetching ratings for type ${type}:`, error);
+            logError(`Error fetching ratings for type ${type}:`, error);
             return {};
         }
     }
@@ -76,7 +77,7 @@ export class DataController {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
         } catch (error) {
-            logger.error('Failed to add new entry:', error);
+            logError('Failed to add new entry:', error);
         }
     }
 
@@ -84,7 +85,7 @@ export class DataController {
         try {
             const response = await fetch(`${this.apiUrl}/oauth2/${authId}`);
             if (!response.ok) {
-                logger.error(`Failed to fetch user data`);
+                logError(`Failed to fetch user data`);
                 return null;
             }
 
@@ -94,26 +95,26 @@ export class DataController {
             }
             return null;
         } catch (error) {
-            logger.error('Error fetching user data:', error);
+            logError('Error fetching user data:', error);
             return null;
         }
     }
 
-    async getUserRating(userId: number, entryId: string): Promise<number | null> {
+    async getUserRating(userId: string, entryId: string): Promise<number | null> {
         try {
             const response = await fetch(`${this.apiUrl}/user/${userId}/${entryId}`);
             if (!response.ok) {
-                logger.error(`User rating not found`);
+                logError(`User rating not found`);
             }
             const result = await response.json();
             return result.rating;
         } catch (error) {
-            logger.error('Error fetching user rating:', error);
+            logError('Error fetching user rating:', error);
             return null;
         }
     }
 
-    async updateUserRating(userId: number, entryId: string, rating: number): Promise<void> {
+    async updateUserRating(userId: string, entryId: string, rating: number): Promise<void> {
         try {
             const response = await fetch(`${this.apiUrl}/user/${userId}/${entryId}`, {
                 method: 'PUT',

@@ -1,17 +1,11 @@
-import { dataController, logger } from './config.ts';
-import { moduleName } from './config.ts';
-import { EntryRatings } from './data-controller.ts';
+import { CurrentUser } from '../module.ts';
+import { moduleName } from '../config.ts';
+import { Entry, EntryRatings } from '../data/data-source.ts';
+import { Component, ComponentOptions } from './component.ts';
 
 let popupInstance: RatingPopup | null = null;
 
-type onCloseCallback = (updated: boolean) => void;
-
-export interface PopupOptions {
-    entry: any,
-    onClose?: onCloseCallback
-};
-
-export function openRatingPopup(target: HTMLElement, options: PopupOptions): RatingPopup | null {
+export function openRatingPopup(target: HTMLElement, options: RatingPopupOptions): RatingPopup | null {
     if (popupInstance?.options.entry === options.entry) {
         return popupInstance;
     }
@@ -94,29 +88,27 @@ const createPopupElementTemplate = () => {
 
 const popupElementTemplate = createPopupElementTemplate();
 
-interface CurrentUser {
-    name: string;
-    id: number;
-}
+export interface RatingPopupOptions extends ComponentOptions {
+    entry: Entry,
+    onClose?: (updated: boolean) => void;
+};
 
-export class RatingPopup {
+export class RatingPopup extends Component<RatingPopupOptions> {
 
     timerMax = 120;
     timerInterval = 2;
     timerLeft = this.timerMax;
     timer: NodeJS.Timeout | null = null;
 
-    currentUser: CurrentUser | null;
+    currentUser: CurrentUser | null = null;
     originalRating: number | null = null;
     currentRating: number | null = null;
     entryRatings: EntryRatings | null = null;
 
-    element: HTMLElement;
+    override render(): HTMLElement {
+        const element = popupElementTemplate.cloneNode(true) as HTMLElement;
 
-    constructor(public options: PopupOptions) {
-        this.element = popupElementTemplate.cloneNode(true) as HTMLElement;
-
-        this.currentUser = game.settings.get(moduleName, 'currentUser') || null;
+        this.currentUser = (game as ReadyGame).settings.get(moduleName, 'currentUser') || null;
         const header = this.element.querySelector('.header') as HTMLElement;
         header.innerText = this.options.entry.name;
 
@@ -131,12 +123,14 @@ export class RatingPopup {
             }
             document.addEventListener('click', onOutsideClick);
         }, 0);
+
+        return element;
     }
 
     async getData() {
-        this.entryRatings = await dataController.getEntryRatings(this.options.entry.uuid);
+        this.entryRatings = await this.module.dataSource.getEntryRatings(this.options.entry.uuid);
         if (this.currentUser) {
-            this.originalRating = this.currentRating = await dataController.getUserRating(this.currentUser.id, this.options.entry.uuid);
+            this.originalRating = this.currentRating = await this.module.dataSource.getUserRating(this.currentUser.id, this.options.entry.uuid);
         }
 
         this.updateRatings();
@@ -214,7 +208,7 @@ export class RatingPopup {
                 evt.preventDefault();
                 evt.stopPropagation();
 
-                game.settings.set(moduleName, 'currentUser', null);
+                game.settings?.set(moduleName, 'currentUser', null);
                 this.currentUser = null;
                 this.updateFooter();
             }
@@ -236,23 +230,23 @@ export class RatingPopup {
 
                 this.timerLeft = this.timerMax;
                 this.timer = setInterval(async () => {
-                  this.timerLeft -= this.timerInterval;
+                    this.timerLeft -= this.timerInterval;
 
-                  const user = await dataController.getUserData(authId);
+                    const user = await this.module.dataSource.getUserData(authId);
 
-                  if (this.timerLeft <= 0 || user) {
+                    if (this.timerLeft <= 0 || user) {
 
-                    if (user) {
-                        this.currentUser = {
-                            name: user.username,
-                            id: user.id
-                        };
-                        game.settings.set(moduleName, 'currentUser', this.currentUser);
+                        if (user) {
+                            this.currentUser = {
+                                name: user.username,
+                                id: user.id
+                            };
+                            game.settings?.set(moduleName, 'currentUser', this.currentUser);
+                        }
+
+                        this.stopTimer();
+                        this.getData();
                     }
-
-                    this.stopTimer();
-                    this.getData();
-                  }
                 }, this.timerInterval * 1000);
             }
             loginButton.innerText = 'Log in with Discord';
@@ -282,7 +276,7 @@ export class RatingPopup {
 
     async saveCurrentRating() {
         try {
-            await dataController.updateUserRating(this.currentUser!.id, this.options.entry.uuid, this.currentRating!);
+            await this.module.dataSource.updateUserRating(this.currentUser!.id, this.options.entry.uuid, this.currentRating!);
         } catch (error) {
             logger.error('Failed to save rating:', error);
         }

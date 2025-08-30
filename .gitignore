@@ -3,5 +3,5 @@ dist/
 package-lock.json
 
 # Dummy files for vite dev server
-/index.html
-/main.js
+module/index.html
+module/main.js

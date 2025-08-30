@@ -1,5 +1,5 @@
 {
-  "name": "pf2e-ratings-server",
+  "name": "foundry-pf2e-ratings-server",
   "version": "1.0.0",
   "description": "PF2E Ratings Server",
   "main": "dist/main.js",

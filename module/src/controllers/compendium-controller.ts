@@ -1,14 +1,23 @@
-import { dataController } from './config.ts';
-import { RatingItem } from './data-controller.ts';
-import { openRatingPopup } from './rating-popup.ts';
+import { RatingItem } from '../data/data-source.ts';
+import { Module } from '../module.ts';
+import { RatingElement } from '../components/rating-element.ts';
+
+declare module '#configuration' {
+    interface HookConfig {
+        renderCompendiumBrowser: (app: any) => boolean;
+        closeCompendiumBrowser: () => boolean;
+    }
+}
 
 export class CompendiumController {
+    declare module: Module;
+
     compendiumBrowser: any;
     tabObserver: MutationObserver | null = null;
     resultListObserver: MutationObserver | null = null;
 
     ratings: Record<string, RatingItem> = {}
-    ratingElementHash: { [key: string]: HTMLElement } = {};
+    ratingElementHash: { [key: string]: RatingElement } = {};
 
     constructor() {
         Hooks.on('renderCompendiumBrowser', (app: any) => {
@@ -27,7 +36,6 @@ export class CompendiumController {
                     attributes: true,
                     attributeFilter: ['data-tab-name']
                 });
-
                 return;
             }
 
@@ -83,35 +91,39 @@ export class CompendiumController {
         }
 
         const tabName = this.compendiumBrowser.activeTab.tabName;
+        let enabled = false;
 
         switch (tabName) {
             case 'spell': {
-                const resultList = this.compendiumBrowser.$state.resultList;
-                await this.updateRatings(tabName);
-
-                if (resultList) {
-                    this.updateResultList();
-
-                    this.resultListObserver = new MutationObserver(() => {
-                        if (this.compendiumBrowser.activeTab.tabName !== tabName)
-                            return;
-                        this.updateResultList();
-                    });
-
-                    this.resultListObserver.observe(resultList, {
-                        childList: true
-                    });
-                }
+                enabled = true;
                 break;
             }
             default:
                 break;
         }
+
+        if (enabled) {
+            const resultList = this.compendiumBrowser.$state.resultList;
+            await this.updateRatings(tabName);
+
+            if (resultList) {
+                this.updateResultList();
+
+                this.resultListObserver = new MutationObserver(() => {
+                    if (this.compendiumBrowser.activeTab.tabName !== tabName)
+                        return;
+                    this.updateResultList();
+                });
+
+                this.resultListObserver.observe(resultList, {
+                    childList: true
+                });
+            }
+        }
     }
 
     updateResultList() {
         const activeTab = this.compendiumBrowser.activeTab;
-        //const tabName = activeTab.tabName;
         const results = activeTab.results.slice(0, activeTab.resultLimit);
         const resultElements = Array.from(this.compendiumBrowser.$state.resultList.children) as HTMLElement[];
 
@@ -123,59 +135,31 @@ export class CompendiumController {
             const entryElement = resultElements[i];
 
             if (!ratingElementHash[id]) {
-                ratingElementHash[id] = this.createRatingElement(entry);
+                ratingElementHash[id] = new RatingElement({
+                    entry: entry,
+                    onClose: (updated: boolean) => {
+                        if (updated) {
+                            this.updateRatings(this.compendiumBrowser.activeTab.tabName).then(() => {
+                                ratingElementHash[id].update(this.ratings[entry.uuid]?.rating);
+                            });
+                        }
+                    }
+                });
             }
-            const ratingElement = ratingElementHash[id];
-
             // Create a new rating entry in the db
             if (this.ratings[id] == null) {
-                dataController.addNewEntry(id, activeTab.tabName);
+                this.module.dataSource.addNewEntry(id, activeTab.tabName);
                 this.ratings[id] = { id: id, rating: null };
             }
 
-            this.updateRatingElement(ratingElementHash[id], this.ratings[id]?.rating);
+            ratingElementHash[id].update(this.ratings[id]?.rating);
+
+            const ratingElement = ratingElementHash[id].element;
             entryElement.insertBefore(ratingElement, entryElement.querySelector('.level'));
         }
     }
 
-    createRatingElement(entry: any): HTMLElement {
-        const ratingElement = document.createElement('div');
-        ratingElement.onclick = (evt) => {
-            evt.stopPropagation();
-            openRatingPopup(ratingElement, {
-                entry: entry,
-                onClose: (updated: boolean) => {
-                    if (updated) {
-                        this.updateRatings(this.compendiumBrowser.activeTab.tabName).then(() => {
-                            this.updateRatingElement(ratingElement, this.ratings[entry.uuid]?.rating);
-                        });
-                    }
-                }
-            });
-        }
-        ratingElement.classList.add('rating');
-
-        const ratingText = document.createElement('span');
-        ratingElement.appendChild(ratingText);
-
-        const starElement = document.createElement('i');
-        starElement.classList.add('fa-solid', 'fa-star');
-        ratingElement.appendChild(starElement);
-
-        return ratingElement;
-    }
-
-    updateRatingElement(element: HTMLElement, rating: number | null) {
-        const ratingText = element.querySelector('span') as HTMLElement;
-        if (!rating) {
-            ratingText.textContent = '?';
-        } else {
-            ratingText.textContent = rating.toFixed(1);
-        }
-    }
-
     async updateRatings(type: string) {
-        this.ratings = await dataController.getRatingsByType(type);
+        this.ratings = await this.module.dataSource.getRatingsByType(type);
     }
-
 }
