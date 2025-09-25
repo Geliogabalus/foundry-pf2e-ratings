@@ -78,6 +78,6 @@ CREATE TRIGGER IF NOT EXISTS rating_update AFTER UPDATE ON Rating
 BEGIN
     -- Increment the new rating
     UPDATE Entry
-    SET rating = (new."1" + new."2" * 2 + new."3" * 3 + new."4" * 4 + new."5" * 5) / (new."1" + new."2" + new."3" + new."4" + new."5")
+    SET rating = CAST((new."1" + new."2" * 2 + new."3" * 3 + new."4" * 4 + new."5" * 5) as REAL) / (new."1" + new."2" + new."3" + new."4" + new."5")
     WHERE new.entryId = id;
 END;
