@@ -7,6 +7,30 @@ export interface RatingElementOptions extends ComponentOptions {
     onClose?: (updated: boolean) => void;
 }
 
+// Rating color palette (as RGB tuples)
+
+type Color = [number, number, number];
+
+const ratingColorPalette: Color[] = [
+    [120, 10, 10],  // dark red
+    [180, 30, 30],  // red
+    [220, 220, 0],  // yellow
+    [0, 200, 0],    // green
+    [0, 240, 240],  // cyan
+];
+
+const lerpColor = (a: Color, b: Color, t: number): string => {
+    const result = a.map((val, i) => Math.round(val + (b[i] - val) * t));
+    return `rgb(${result.join(", ")})`;
+};
+
+const getRatingColor = (rating: number): string => {
+    const index = Math.floor(rating) - 1;
+    const nextIndex = Math.min(index + 1, ratingColorPalette.length - 1);
+    const t = rating - Math.floor(rating); // fractional part
+    return lerpColor(ratingColorPalette[index], ratingColorPalette[nextIndex], t);
+};
+
 export class RatingElement extends Component<RatingElementOptions> {
     declare element: HTMLDivElement;
 
@@ -36,19 +60,11 @@ export class RatingElement extends Component<RatingElementOptions> {
         if (!rating) {
             ratingText.textContent = '?';
             this.element.style.color = 'unset';
-        } else {
-            this.element.style.color = '#ff4545';
-            if (rating > 2) {
-                this.element.style.color = '#ffa534';
-            }
-            if (rating > 3) {
-                this.element.style.color = '#ffe234';
-            }
-            if (rating > 4) {
-                this.element.style.color = '#57e32c';
-            }
-
-            ratingText.textContent = rating.toFixed(1);
+            return;
         }
+
+        this.element.style.color = getRatingColor(rating);
+
+        ratingText.textContent = rating.toFixed(1);
     }
 }
