@@ -55,7 +55,7 @@ export class RatingElement extends Component<RatingElementOptions> {
         return element;
     }
 
-    update(rating: number | null) {
+    update(rating: number | null | undefined) {
         const ratingText = this.element.querySelector('span') as HTMLElement;
         if (!rating) {
             ratingText.textContent = '?';
