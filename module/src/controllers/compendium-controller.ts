@@ -95,7 +95,25 @@ export class CompendiumController {
         tab.filterData.order.options.rating = {
             label: 'Rating',
             type: 'numeric'
+        };
+
+        if (!tab.filterData.ranges) {
+            tab.filterData.ranges = {};
         }
+
+        tab.filterData.ranges.rating = {
+            changed: false,
+            defaultMin: 0,
+            defaultMax: 5,
+            isExpanded: false,
+            label: "Rating",
+            values: {
+                min: 0,
+                max: 5,
+                inputMin: 0,
+                inputMax: 5,
+            },
+        };
 
         const superLoadData = tab.loadData;
         tab.loadData = async (...args: any[]) => {
@@ -116,6 +134,21 @@ export class CompendiumController {
                 return ratingA - ratingB;
             });
             return order.direction === "asc" ? sorted : sorted.reverse();
+        }
+
+        const superFilterIndexData = tab.filterIndexData;
+        tab.filterIndexData = function (entry: any) {
+            const result = superFilterIndexData.call(this, entry);
+            if (!result) return false;
+            if (!this['__ratings']) return true;
+
+            const rangeFilter = this.filterData.ranges.rating;
+            const rating = this['__ratings'].get(entry.uuid)?.rating ?? 0;
+
+            if (!(rating >= rangeFilter.values.min && rating <= rangeFilter.values.max))
+                return false;
+
+            return true;
         }
     }
 
