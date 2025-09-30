@@ -128,10 +128,11 @@ export class CompendiumController {
             if (order.by !== 'rating') return superSortResult.call(this, result);
 
             const ratings = this['__ratings'] as Map<string, RatingItem>;
+            const lang = (game as ReadyGame).i18n.lang;
             const sorted = result.sort((entryA, entryB) => {
                 const ratingA = ratings?.get(entryA.uuid)?.rating ?? 0;
                 const ratingB = ratings?.get(entryB.uuid)?.rating ?? 0;
-                return ratingA - ratingB;
+                return ratingA - ratingB || entryA.name.localeCompare(entryB.name, lang);;
             });
             return order.direction === "asc" ? sorted : sorted.reverse();
         }
@@ -161,6 +162,10 @@ export class CompendiumController {
         const tab = this.compendiumBrowser.activeTab;
         const ratings = await this.getRatings(tab.tabName);
         tab['__ratings'] = ratings;
+
+        // Toggle order direction to fix problem when svelte is not reacting to rating range change
+        tab.filterData.order.direction = tab.filterData.order.direction === 'asc' ? 'desc' : 'asc';
+        tab.filterData.order.direction = tab.filterData.order.direction === 'asc' ? 'desc' : 'asc';
 
         if (this.enabledTabs.includes(tab.tabName)) {
             const resultList = this.compendiumBrowser.$state.resultList;
