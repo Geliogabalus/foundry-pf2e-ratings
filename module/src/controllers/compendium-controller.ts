@@ -17,12 +17,19 @@ export class CompendiumController {
     tabObserver: MutationObserver | null = null;
     resultListObserver: MutationObserver | null = null;
 
-    ratings: Record<string, RatingItem> = {}
+    ratingsMap: Map<string, Promise<Map<string, RatingItem>>> = new Map();
     ratingElementHash: { [key: string]: RatingElement } = {};
 
+    enabledTabs = ['spell'];
+
     constructor() {
+        this.compendiumBrowser = (game as any).pf2e.compendiumBrowser;
+
+        this.enabledTabs.forEach(tabName => {
+            this.injectTab(this.compendiumBrowser.tabs[tabName]);
+        });
+
         Hooks.on('renderCompendiumBrowser', (app: any) => {
-            this.compendiumBrowser = app;
             const browserTabElement = app.element.querySelector('.browser-tab') as HTMLElement;
             if (browserTabElement.hasAttribute('data-tab-name')) {
                 this.updateTab();
@@ -77,12 +84,73 @@ export class CompendiumController {
         });
 
         Hooks.on('closeCompendiumBrowser', () => {
-            this.compendiumBrowser = null;
             if (this.tabObserver) {
                 this.tabObserver.disconnect();
                 this.tabObserver = null;
             }
         });
+    }
+
+    injectTab(tab: any) {
+        tab.filterData.order.options.rating = {
+            label: 'Rating',
+            type: 'numeric'
+        };
+
+        if (!tab.filterData.ranges) {
+            tab.filterData.ranges = {};
+        }
+
+        tab.filterData.ranges.rating = {
+            changed: false,
+            defaultMin: 0,
+            defaultMax: 5,
+            isExpanded: false,
+            label: "Rating",
+            values: {
+                min: 0,
+                max: 5,
+                inputMin: 0,
+                inputMax: 5,
+            },
+        };
+
+        const superLoadData = tab.loadData;
+        tab.loadData = async (...args: any[]) => {
+            this.updateRatings(tab.tabName);
+            await superLoadData.apply(tab, args);
+        }
+
+        const superSortResult = tab.sortResult;
+        tab.sortResult = function (result: any[]) {
+            if (!this.filterData) return [];
+            const order = this.filterData.order;
+            if (order.by !== 'rating') return superSortResult.call(this, result);
+
+            const ratings = this['__ratings'] as Map<string, RatingItem>;
+            const lang = (game as ReadyGame).i18n.lang;
+            const sorted = result.sort((entryA, entryB) => {
+                const ratingA = ratings?.get(entryA.uuid)?.rating ?? 0;
+                const ratingB = ratings?.get(entryB.uuid)?.rating ?? 0;
+                return ratingA - ratingB || entryA.name.localeCompare(entryB.name, lang);;
+            });
+            return order.direction === "asc" ? sorted : sorted.reverse();
+        }
+
+        const superFilterIndexData = tab.filterIndexData;
+        tab.filterIndexData = function (entry: any) {
+            const result = superFilterIndexData.call(this, entry);
+            if (!result) return false;
+            if (!this['__ratings']) return true;
+
+            const rangeFilter = this.filterData.ranges.rating;
+            const rating = this['__ratings'].get(entry.uuid)?.rating ?? 0;
+
+            if (!(rating >= rangeFilter.values.min && rating <= rangeFilter.values.max))
+                return false;
+
+            return true;
+        }
     }
 
     async updateTab() {
@@ -91,29 +159,24 @@ export class CompendiumController {
             this.resultListObserver = null;
         }
 
-        const tabName = this.compendiumBrowser.activeTab.tabName;
-        let enabled = false;
+        const tab = this.compendiumBrowser.activeTab;
+        const ratings = await this.getRatings(tab.tabName);
+        tab['__ratings'] = ratings;
 
-        switch (tabName) {
-            case 'spell': {
-                enabled = true;
-                break;
-            }
-            default:
-                break;
-        }
+        // Toggle order direction to fix problem when svelte is not reacting to rating range change
+        tab.filterData.order.direction = tab.filterData.order.direction === 'asc' ? 'desc' : 'asc';
+        tab.filterData.order.direction = tab.filterData.order.direction === 'asc' ? 'desc' : 'asc';
 
-        if (enabled) {
+        if (this.enabledTabs.includes(tab.tabName)) {
             const resultList = this.compendiumBrowser.$state.resultList;
-            await this.updateRatings(tabName);
 
             if (resultList) {
-                this.updateResultList();
+                this.updateResultList(tab);
 
                 this.resultListObserver = new MutationObserver(() => {
-                    if (this.compendiumBrowser.activeTab.tabName !== tabName)
+                    if (this.compendiumBrowser.activeTab.tabName !== tab.tabName)
                         return;
-                    this.updateResultList();
+                    this.updateResultList(tab);
                 });
 
                 this.resultListObserver.observe(resultList, {
@@ -123,12 +186,14 @@ export class CompendiumController {
         }
     }
 
-    updateResultList() {
+    updateResultList(tab: any) {
         const activeTab = this.compendiumBrowser.activeTab;
+        const tabName = activeTab.tabName;
         const results = activeTab.results.slice(0, activeTab.resultLimit);
         const resultElements = Array.from(this.compendiumBrowser.$state.resultList.children) as HTMLElement[];
 
         const ratingElementHash = this.ratingElementHash;
+        const tabRatings = tab['__ratings'] as Map<string, RatingItem>;
 
         for (let i = 0; i < results.length; i++) {
             const entry = results[i];
@@ -140,20 +205,22 @@ export class CompendiumController {
                     entry: entry,
                     onClose: (updated: boolean) => {
                         if (updated) {
-                            this.updateRatings(this.compendiumBrowser.activeTab.tabName).then(() => {
-                                ratingElementHash[id].update(this.ratings[entry.uuid]?.rating);
+                            this.updateRatings(tabName);
+                            this.getRatings(tabName).then(ratings => {
+                                tab['__ratings'] = ratings;
+                                ratingElementHash[id].update(ratings?.get(entry.uuid)?.rating);
                             });
                         }
                     }
                 }) as RatingElement;
             }
             // Create a new rating entry in the db
-            if (this.ratings[id] == null) {
+            if (!tabRatings.has(id)) {
                 this.module.dataSource.addNewEntry(id, activeTab.tabName);
-                this.ratings[id] = { id: id, rating: null };
+                tabRatings.set(id, { id: id, rating: null });
             }
 
-            ratingElementHash[id].update(this.ratings[id]?.rating);
+            ratingElementHash[id].update(tabRatings.get(id)?.rating);
 
             const ratingElement = ratingElementHash[id].element;
             entryElement.insertBefore(ratingElement, entryElement.querySelector('.level'));
@@ -161,6 +228,10 @@ export class CompendiumController {
     }
 
     async updateRatings(type: string) {
-        this.ratings = await this.module.dataSource.getRatingsByType(type);
+        this.ratingsMap.set(type, this.module.dataSource.getRatingsByType(type).then(data => new Map(Object.entries(data))));
+    }
+
+    async getRatings(tabName: string) {
+        return this.ratingsMap.get(tabName);
     }
 }

@@ -16,13 +16,15 @@ declare module '#configuration' {
 }
 
 export class Module {
-    readonly compendiumController: CompendiumController;
+    compendiumController!: CompendiumController;
     readonly dataSource: DataSource;
 
     constructor() {
         this.dataSource = new DataSource(API_URL);
-        this.compendiumController = new CompendiumController();
-        this.compendiumController.module = this;
+        Hooks.once('ready', () => {
+            this.compendiumController = new CompendiumController();
+            this.compendiumController.module = this;
+        });
 
         (game as InitGame).settings.register(config.moduleName, 'currentUser', {
             scope: 'client',
