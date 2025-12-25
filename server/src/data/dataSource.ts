@@ -2,7 +2,9 @@ import { DatabaseSync, StatementSync } from 'node:sqlite';
 import { Entry } from './entities.js';
 
 export const EntryTypes: Record<string, number> = {
-    'spell': 1
+    'spell': 1,
+    'equipment': 2,
+    'feat': 3,
 }
 
 export class DataSource {

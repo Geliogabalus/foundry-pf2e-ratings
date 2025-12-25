@@ -1,7 +1,7 @@
 import { RatingItem } from '../data/data-source.ts';
 import { Module } from '../module.ts';
 import { RatingElement } from '../components/rating-element.ts';
-import { createComponent } from 'src/components/component.ts';
+import { createComponent } from '../components/component.ts';
 
 declare module '#configuration' {
     interface HookConfig {
@@ -11,7 +11,7 @@ declare module '#configuration' {
 }
 
 export class CompendiumController {
-    declare module: Module;
+    module: Module;
 
     compendiumBrowser: any;
     tabObserver: MutationObserver | null = null;
@@ -20,10 +20,26 @@ export class CompendiumController {
     ratingsMap: Map<string, Promise<Map<string, RatingItem>>> = new Map();
     ratingElementHash: { [key: string]: RatingElement } = {};
 
-    enabledTabs = ['spell'];
+    enabledTabs: string[] = [];
 
-    constructor() {
+    constructor(parentModule: Module) {
+        this.module = parentModule;
+
+        const game: ReadyGame = (globalThis as any).game;
+
         this.compendiumBrowser = (game as any).pf2e.compendiumBrowser;
+
+        if (game.settings.get(this.module.id, 'enableSpells')) {
+            this.enabledTabs.push('spell');
+        }
+
+        if (game.settings.get(this.module.id, 'enableEquipment')) {
+            this.enabledTabs.push('equipment');
+        }
+
+        if (game.settings.get(this.module.id, 'enableFeats')) {
+            this.enabledTabs.push('feat');
+        }
 
         this.enabledTabs.forEach(tabName => {
             this.injectTab(this.compendiumBrowser.tabs[tabName]);
@@ -187,9 +203,8 @@ export class CompendiumController {
     }
 
     updateResultList(tab: any) {
-        const activeTab = this.compendiumBrowser.activeTab;
-        const tabName = activeTab.tabName;
-        const results = activeTab.results.slice(0, activeTab.resultLimit);
+        const tabName = tab.tabName;
+        const results = tab.results.slice(0, tab.resultLimit);
         const resultElements = Array.from(this.compendiumBrowser.$state.resultList.children) as HTMLElement[];
 
         const ratingElementHash = this.ratingElementHash;
@@ -216,7 +231,7 @@ export class CompendiumController {
             }
             // Create a new rating entry in the db
             if (!tabRatings.has(id)) {
-                this.module.dataSource.addNewEntry(id, activeTab.tabName);
+                this.module.dataSource.addNewEntry(id, tabName);
                 tabRatings.set(id, { id: id, rating: null });
             }
 
