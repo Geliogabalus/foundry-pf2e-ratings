@@ -1,6 +1,6 @@
 # PF2e Ratings
 
-A Foundry VTT module for the PF2E system, which facilitates community based rating of various system components. Currently only spells are available for rating, but other compendium entites will come soon depending on the demand.
+A Foundry VTT module for the PF2E system, which facilitates community based rating of various system components. Currently, ratings are available for spells, equipment and feats. It is possible to sort entries by rating using built-in sorting functionality.
 
 To rate the item user need to log in via Discord.
 
