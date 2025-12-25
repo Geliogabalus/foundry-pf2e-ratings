@@ -21,7 +21,6 @@
         "esModuleInterop": true,
         "sourceMap": true,
         "isolatedModules": true,
-        "baseUrl": ".",
         "rootDir": ".",
         "outDir": "dist",
         "allowUnusedLabels": false,

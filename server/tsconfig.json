@@ -17,7 +17,6 @@
     "esModuleInterop": true,
     "sourceMap": false,
     "isolatedModules": true,
-    "baseUrl": ".",
     "rootDir": "./src",
     "outDir": "./dist",
     "allowUnusedLabels": false,
