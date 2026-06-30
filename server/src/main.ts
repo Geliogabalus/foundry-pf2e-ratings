@@ -28,6 +28,18 @@ app.listen(PORT, () => {
   throw new Error(error.message);
 });
 
+// Convert uuid to id for compatibility with the old module version
+const ensureCorrectId = (id: string): string => {
+  if (!id) {
+    return id;
+  }
+
+  if (id.includes('.')) {
+    return id.split('.').pop() as string;
+  }
+  return id;
+}
+
 // Entries
 
 app.get('/entry/:type', (request: Request, response: Response) => {
@@ -45,7 +57,7 @@ app.get('/entry/:type', (request: Request, response: Response) => {
 
 app.post('/entry/:type', (request: Request, response: Response) => {
   const type = request.params.type;
-  const id = request.body?.id;
+  const id = ensureCorrectId(request.body?.id);
 
   if (!id) {
     response.status(400).send({ error: 'Id is required' });
@@ -64,7 +76,7 @@ app.post('/entry/:type', (request: Request, response: Response) => {
 });
 
 app.get('/entry/:id/ratings', (request: Request, response: Response) => {
-  const id = request.params.id;
+  const id = ensureCorrectId(request.params.id);
 
   const ratings = dataSource.getEntryRatings(id);
 
@@ -88,7 +100,7 @@ app.get('/entry/:id/ratings', (request: Request, response: Response) => {
 app.get('/user/:id/:entryId', (request: Request, response: Response) => {
 
   const userId = request.params.id;
-  const entryId = request.params.entryId;
+  const entryId = ensureCorrectId(request.params.entryId);
 
   const rating = dataSource.getUserRating(userId, entryId);
 
@@ -97,7 +109,7 @@ app.get('/user/:id/:entryId', (request: Request, response: Response) => {
 
 app.put('/user/:id/:entryId', (request: Request, response: Response) => {
   const userId = request.params.id;
-  const entryId = request.params.entryId;
+  const entryId = ensureCorrectId(request.params.entryId);
   const { rating } = request.body;
 
   if (typeof rating !== 'number' || rating < 1 || rating > 5) {
