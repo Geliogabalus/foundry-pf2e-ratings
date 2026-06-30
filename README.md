@@ -1,5 +1,8 @@
 # PF2e Ratings
 
+> [!WARNING]  
+> ## Due to the changes to the server and DB, versions of the module prior to the 1.3.0 don't show ratings in the compendium properly. Please, update to the version 1.3.0
+
 A Foundry VTT module for the PF2E system, which facilitates community based rating of various system components. Currently, ratings are available for spells, equipment and feats. It is possible to sort entries by rating using built-in sorting functionality.
 
 To rate the item user need to log in via Discord.
