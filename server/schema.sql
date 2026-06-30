@@ -38,6 +38,11 @@ CREATE TABLE "UserRating" (
 	FOREIGN KEY("userId") REFERENCES "User"("id")
 )
 
+CREATE TRIGGER entry_insert AFTER INSERT ON Entry
+BEGIN
+    INSERT INTO Rating (entryId) VALUES (new.id);
+END
+
 CREATE TRIGGER IF NOT EXISTS user_rating_update AFTER UPDATE ON UserRating
 BEGIN
     -- Increment the new rating

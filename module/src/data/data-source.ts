@@ -6,7 +6,7 @@ export interface RatingItem {
 }
 
 export interface Entry {
-    uuid: string;
+    id: string;
     name: string;
 }
 
@@ -63,14 +63,14 @@ export class DataSource {
         }
     }
 
-    async addNewEntry(uuid: string, type: string): Promise<void> {
+    async addNewEntry(id: string, type: string): Promise<void> {
         try {
             const response = await fetch(`${this.apiUrl}/entry/${type}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ id: uuid })
+                body: JSON.stringify({ id })
             });
 
             if (!response.ok) {

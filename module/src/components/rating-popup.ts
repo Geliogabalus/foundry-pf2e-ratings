@@ -103,9 +103,9 @@ export class RatingPopup extends Component<RatingPopupOptions> {
 
     async update() {
         this.currentUser = (game as ReadyGame).settings.get(moduleName, 'currentUser') || null;
-        this.entryRatings = await this.module.dataSource.getEntryRatings(this.options.entry.uuid);
+        this.entryRatings = await this.module.dataSource.getEntryRatings(this.options.entry.id);
         if (this.currentUser) {
-            this.originalRating = this.currentRating = await this.module.dataSource.getUserRating(this.currentUser.id, this.options.entry.uuid);
+            this.originalRating = this.currentRating = await this.module.dataSource.getUserRating(this.currentUser.id, this.options.entry.id);
         }
 
         this.updateRatings();
@@ -251,7 +251,7 @@ export class RatingPopup extends Component<RatingPopupOptions> {
 
     async saveCurrentRating() {
         try {
-            await this.module.dataSource.updateUserRating(this.currentUser!.id, this.options.entry.uuid, this.currentRating!);
+            await this.module.dataSource.updateUserRating(this.currentUser!.id, this.options.entry.id, this.currentRating!);
         } catch (error) {
             logger.error('Failed to save rating:', error);
         }

@@ -1,6 +1,6 @@
 {
   "name": "foundry-pf2e-ratings-server",
-  "version": "1.0.0",
+  "version": "1.3.0",
   "description": "PF2E Ratings Server",
   "main": "dist/main.js",
   "author": "arthur.khokhlov@gmail.com",

@@ -143,11 +143,17 @@ export class CompendiumController {
             const order = this.filterData.order;
             if (order.by !== 'rating') return superSortResult.call(this, result);
 
+            // this handler has different context
+            const getEntryId = (entry: any) => {
+                const uuidParts = entry.uuid.split('.');
+                return uuidParts[uuidParts.length - 1];
+            }
+
             const ratings = this['__ratings'] as Map<string, RatingItem>;
             const lang = (game as ReadyGame).i18n.lang;
             const sorted = result.sort((entryA, entryB) => {
-                const ratingA = ratings?.get(entryA.uuid)?.rating ?? 0;
-                const ratingB = ratings?.get(entryB.uuid)?.rating ?? 0;
+                const ratingA = ratings?.get(getEntryId(entryA))?.rating ?? 0;
+                const ratingB = ratings?.get(getEntryId(entryB))?.rating ?? 0;
                 return ratingA - ratingB || entryA.name.localeCompare(entryB.name, lang);;
             });
             return order.direction === "asc" ? sorted : sorted.reverse();
@@ -160,7 +166,7 @@ export class CompendiumController {
             if (!this['__ratings']) return true;
 
             const rangeFilter = this.filterData.ranges.rating;
-            const rating = this['__ratings'].get(entry.uuid)?.rating ?? 0;
+            const rating = this['__ratings'].get(this.getEntryId(entry))?.rating ?? 0;
 
             if (!(rating >= rangeFilter.values.min && rating <= rangeFilter.values.max))
                 return false;
@@ -211,35 +217,40 @@ export class CompendiumController {
         const tabRatings = tab['__ratings'] as Map<string, RatingItem>;
 
         for (let i = 0; i < results.length; i++) {
-            const entry = results[i];
-            const id = entry.uuid;
+            const entry = structuredClone(results[i]);
+            entry.id = this.getEntryId(entry);
             const entryElement = resultElements[i];
 
-            if (!ratingElementHash[id]) {
-                ratingElementHash[id] = createComponent(RatingElement,{
+            if (!ratingElementHash[entry.id]) {
+                ratingElementHash[entry.id] = createComponent(RatingElement, {
                     entry: entry,
                     onClose: (updated: boolean) => {
                         if (updated) {
                             this.updateRatings(tabName);
                             this.getRatings(tabName).then(ratings => {
                                 tab['__ratings'] = ratings;
-                                ratingElementHash[id].update(ratings?.get(entry.uuid)?.rating);
+                                ratingElementHash[entry.id].update(ratings?.get(entry.id)?.rating);
                             });
                         }
                     }
                 }) as RatingElement;
             }
             // Create a new rating entry in the db
-            if (!tabRatings.has(id)) {
-                this.module.dataSource.addNewEntry(id, tabName);
-                tabRatings.set(id, { id: id, rating: null });
+            if (!tabRatings.has(entry.id)) {
+                this.module.dataSource.addNewEntry(entry.id, tabName);
+                tabRatings.set(entry.id, { id: entry.id, rating: null });
             }
 
-            ratingElementHash[id].update(tabRatings.get(id)?.rating);
+            ratingElementHash[entry.id].update(tabRatings.get(entry.id)?.rating);
 
-            const ratingElement = ratingElementHash[id].element;
+            const ratingElement = ratingElementHash[entry.id].element;
             entryElement.insertBefore(ratingElement, entryElement.querySelector('.level'));
         }
+    }
+
+    getEntryId(entry: any) {
+        const uuidParts = entry.uuid.split('.');
+        return uuidParts[uuidParts.length - 1];
     }
 
     async updateRatings(type: string) {
