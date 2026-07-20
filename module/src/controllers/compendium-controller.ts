@@ -190,7 +190,7 @@ export class CompendiumController {
         tab.filterData.order.direction = tab.filterData.order.direction === 'asc' ? 'desc' : 'asc';
 
         if (this.enabledTabs.includes(tab.tabName)) {
-            const resultList = this.compendiumBrowser.$state.resultList;
+            const resultList = this.compendiumBrowser.resultList;
 
             if (resultList) {
                 this.updateResultList(tab);
@@ -211,7 +211,7 @@ export class CompendiumController {
     updateResultList(tab: any) {
         const tabName = tab.tabName;
         const results = tab.results.slice(0, tab.resultLimit);
-        const resultElements = Array.from(this.compendiumBrowser.$state.resultList.children) as HTMLElement[];
+        const resultElements = Array.from(this.compendiumBrowser.resultList.children) as HTMLElement[];
 
         const ratingElementHash = this.ratingElementHash;
         const tabRatings = tab['__ratings'] as Map<string, RatingItem>;
